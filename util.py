@@ -50,9 +50,14 @@ def tohex(v, split=' '):
     The function provides a conversion of integers or byte arrays ('B') into 
     their hexadecimal form separated by the splitter string
     """
-    if type(v) == array or type(v) == bytearray or type(v) == str:
-        return split.join("%0.2X" % x for x in v)
+    myformat = "%0.2X"
+    
+    if type(v) == array or type(v) == bytearray:
+        return split.join(myformat % x for x in v)
+    elif type(v) == str:
+        temp = bytearray(v)
+        return split.join(myformat % x for x in temp)
     elif type(v) ==  int:
-        return "%0.2X" % v
+        return myformat % v
     else:
         return "tohex(): unsupported type"

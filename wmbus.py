@@ -9,7 +9,7 @@ from Crypto.Cipher import AES
 debug = 1
 
 class WMBusFrame():
-  
+
     def __init__(self, *args, **kwargs):
 
         # just holds the most usefull wireless M-Bus frame params
@@ -40,7 +40,7 @@ class WMBusFrame():
         }
         """
         
-        if (arr is not None and arr[0] >= 11 and len(arr) == arr[0]+1):
+        if (arr is not None and arr[0] >= 11 and len(arr) == arr[0]):
             self.length = arr[0]
             self.control = arr[1]
             self.manufacturer = arr[2:4]
@@ -73,27 +73,28 @@ class WMBusFrame():
             if (keys):
                 devid = ''.join(chr(b) for b in self.get_device_id()) 
                 self.key = keys.get(devid, None)
-             
+            
             # time might come where we should move this into a function
             if (self.header and self.header.get_encryption_mode() == 5):
                 
                 # data is encrypted. thus, check if a key was specified
                 if (self.key):
+                    
                     # setup cipher specs, decrypt and strip padding
                     spec = AES.new(self.key, AES.MODE_CBC, "%s" % self.get_iv())
-                    pt = spec.decrypt(self.data)
+                    self.data = bytearray(spec.decrypt("%s" % self.data))
                     
                     # check whether the first two bytes are 2F
-                    if (pt[0] != '\x2F' and pt[1] !='\x2F'):
+                    if (self.data[0:2] != '\x2F\x2F'):
+                        print util.tohex(self.data)
                         raise Exception("Decryption failed")
-                    
-                    # strip padding
-                    self.data = bytearray(pt[2:].rstrip('\x2F'))
-                
-                    while len(self.data):
-                        record = WMBusDataRecord()
-                        self.data = record.parse(self.data)            
-                        self.records.append(record)
+            
+            self.data = bytearray(self.data.lstrip('\x2F').rstrip('\x2F'))
+ 
+            while len(self.data) > 0:
+                record = WMBusDataRecord()
+                self.data = record.parse(self.data)            
+                self.records.append(record)
         else:
             print "(%d) " % arr[0] + util.tohex(arr) 
             raise Exception("Invalid frame length")
@@ -148,6 +149,16 @@ class WMBusFrame():
         - timestamp
         - device manufacturer, serial, type and version
         - frame direction, purpose
+        
+        Depending on the verbosity, additional details could be printed
+        - frame header info
+        - transport header info
+        - data records
+        
+        The log method takes three levels of verbosity
+        0: just single line
+        1: additionally log frame header and transpor header info
+        2: additionally log data records
         """
         line = datetime.now().strftime("%b %d %H:%M:%S") + " "
         line += self.get_manufacturer_short() + " "
@@ -158,14 +169,35 @@ class WMBusFrame():
             line += 'Records: %d' % len(self.records)
             
             if verb >= 1:
-                for rec in self.records:
-                     val = rec.value
-                     val.reverse()
+                line += '\n--'
+                line += "\nCI Detail:\t" + util.tohex(self.control_information) + " (" + self.get_ci_detail() + ", " + self.get_function_code() + ")"
+                line += "\nheader:\t\t" + self.header_details()
+                
+                
+                if (self.is_with_long_tl() or self.is_with_short_tl()):
+                    line += "\nhas errors:\t%r" % self.header.has_errors()
+                    line += "\naccess:\t\t" + self.header.accessibility()
                     
-                     print '--'
-                     print 'DIFs:\t' + util.tohex(rec.header.dif) + " (" + rec.header.get_function_field_name() + ", " + rec.header.get_data_field_name() + ")"
-                     print 'VIFs:\t' + util.tohex(rec.header.vif) + " (" + rec.header.get_vif_description() + ")"
-                     print 'Value:\t' + util.tohex(val)
+                    if (self.header.configuration):
+                        line += "\nconfig word:\t" + util.tohex(self.header.configuration)
+                        line += "\nmode:\t\t%d" % self.header.get_encryption_mode() + " (" + self.header.get_encryption_name() + ")"
+                        
+                        if (self.is_encrypted()):
+                            line += "\niv:\t\t" + util.tohex(self.get_iv())
+                            line += "\nkey:\t\t" + util.tohex(self.key)
+                
+                line += '\n--'
+                
+                if verb >= 2:
+                    for rec in self.records:
+                         val = rec.value
+                         val.reverse()
+                        
+                         line += '\nDIFs:\t' + util.tohex(rec.header.dif) + " (" + rec.header.get_function_field_name() + ", " + rec.header.get_data_field_name() + ")"
+                         line += '\nVIFs:\t' + util.tohex(rec.header.vif) + " (" + rec.header.get_vif_description() + ")"
+                         line += '\nValue:\t' + util.tohex(val)
+                         line += '\n--'
+                         
         else:
             line += 'Data: ' + util.tohex(self.data)
         '''
@@ -382,6 +414,33 @@ class WMBusFrame():
             0x3E: 'Reserved for system devices',
             0x3F: 'Reserved for system devices'
             }.get(self.address[5], 'get_device_type(): type unknown')
+            
+    def header_details(self):
+        """ Returns a text indicating what header is being used
+        """
+
+        text = ''
+        
+        if (self.is_without_tl()):
+            text = 'w/o header'
+            
+        if (self.is_with_short_tl()):
+            text = 'short header'
+            
+        if (self.is_with_long_tl()):
+            text = 'long header'
+            
+        return text
+        
+    def is_encrypted(self):
+        """ Returns False if the captured frame signals "No encryption"
+        """
+        
+        if (self.header.configuration[0] & 0x0F != 0):
+            return True
+        
+        return False
+
  
 class WMBusShortDataHeader():
     
@@ -473,7 +532,7 @@ class WMBusShortDataHeader():
             4: "AES encryption with CBC; IV is zero",
             5: "AES encryption with CBC; IV is not zero"
         }.get(mode)
-        
+            
     def accessibility(self):
         """ Provides information on the accessibility of the sending device
         
@@ -497,7 +556,6 @@ class WMBusShortDataHeader():
             return 'Unlimited access' 
             
         return 'accessibility(): unkown ...this should never happen'
-        
 
 class WMBusLongDataHeader(WMBusShortDataHeader):
     
@@ -540,7 +598,6 @@ class WMBusDataRecordHeader():
         
         It returns the value part
         """ 
-        
         nr_difs = self.get_difs(arr)
         nr_vifs = self.get_vifs(arr[nr_difs:])
         
@@ -551,7 +608,7 @@ class WMBusDataRecordHeader():
         else:
             var = 0
             
-            if (self.get_data_type == self.DATA_TYPE_VARIABLE):
+            if (self.get_data_type() == WMBusDataRecordHeader.DATA_TYPE_VARIABLE):
                 var = 1
                 
             start = nr_difs+nr_vifs+var
@@ -612,13 +669,13 @@ class WMBusDataRecordHeader():
         chooser = self.dif[0] & 0x0F
         
         if (chooser == 0x8):
-            return DATA_TYPE_SELECTION_FOR_READOUT
+            return self.DATA_TYPE_SELECTION_FOR_READOUT
         elif (chooser == 0xD):
-            return DATA_TYPE_VARIABLE
+            return self.DATA_TYPE_VARIABLE
         elif (chooser == 0xF):
-            return DATA_TYPE_SPECIAL_FUNCTION
+            return self.DATA_TYPE_SPECIAL_FUNCTION
         else:
-            return DATA_TYPE_FIXED
+            return self.DATA_TYPE_FIXED
         
     def get_data_len(self, arr):
         """ Returns the record value number of bytes 
@@ -637,7 +694,7 @@ class WMBusDataRecordHeader():
         48      0110 48 Bit Integer/Binary  1110 12 digit BCD
         64      0111 64 Bit Integer/Binary  1111 Special Functions
         """
-        
+         
         chooser = self.dif[0] & 0x0F
         
         if chooser == 0xD:
@@ -662,7 +719,7 @@ class WMBusDataRecordHeader():
                 0xB: 3,
                 0xC: 4,
                 0xE: 6
-            }.get(chooser, None)
+            }.get(chooser, -1)
 
     def get_data_field_name(self):
         """ Returns a speaking name for the DIF data field
@@ -1071,7 +1128,7 @@ class WMBusDataRecord():
         
         var = 0
         
-        if (self.header.get_data_type == WMBusDataRecordHeader.DATA_TYPE_VARIABLE):
+        if (self.header.get_data_type() == WMBusDataRecordHeader.DATA_TYPE_VARIABLE):
             var = 1
             
         len_dif = len(self.header.dif)
@@ -1080,5 +1137,3 @@ class WMBusDataRecord():
         len_total = len_dif + len_vif + var + len(self.value)
         
         return arr[len_total:]
-        
-        

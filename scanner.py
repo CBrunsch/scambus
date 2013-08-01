@@ -3,14 +3,12 @@
 import getopt, sys, time, util
 from wmbus import WMBusFrame
 from Crypto.Cipher import AES
-
-
-    
+   
 def main(argv):
     
     samplefile = ''
     interface = '/dev/ttyUSB3'
-    usagetext = 'scanner.py -i <interface> [-l <samplefile>]'
+    usagetext = 'scanner.py -hv -i <interface>'
     verbosity = 0
     
     # setup known keys dictionarry by their device id
@@ -20,7 +18,7 @@ def main(argv):
     }
     
     try:
-        opts, args = getopt.getopt(argv,"vhli:",["samplefile", "interface="])
+        opts, args = getopt.getopt(argv,"v:hi:",["interface="])
     except getopt.GetoptError:
         print usagetext
         sys.exit(2)
@@ -28,13 +26,17 @@ def main(argv):
         if opt == '-h':
             print usagetext
             sys.exit()
-        elif opt in ("-l", "--samplefile"):
-            samplefile = arg
-        elif opt in ("-i", "--interface"):
-            interface = arg
-        elif opt == '-v':
-			verbosity = 1
-			
+        else:
+            if opt in ("-i", "--interface"):
+                interface = arg
+            if opt == "-v":
+                verbosity = 1
+                
+                if arg == 'v':
+                    verbosity = 2
+                
+                if arg == 'vv':
+                    verbosity = 3
 
     while 1:
         # setup values
@@ -79,7 +81,7 @@ def main(argv):
             elif (state == 1):
                 # let's read the frame length from the next byte
                 arr.append(ser.read(1))
-                frame_length = arr[2]
+                frame_length = arr[2] -1
                 state = 2
             elif (state == 2):
                 '''
@@ -90,71 +92,21 @@ def main(argv):
                     for i in range(frame_length):
                         arr.append(ser.read(1))
                         
-                    # print the whole wireless M-Bus frame in hex
-                    print util.tohex(arr)
+                    if (verbosity >= 3):
+                        # print the whole wireless M-Bus frame in hex
+                        print util.tohex(arr)
                     
                     # instantiate an wireless m-bus frame based on the data
                     frame = WMBusFrame() 
                     frame.parse(arr[2:], keys)
                     
                     # print wM-Bus frame information as log line
-                    frame.log(1)
-                    
-                    print "CI Detail:\t" + util.tohex(frame.control_information) + " (" + frame.get_ci_detail() + ", " + frame.get_function_code() + ")"
-                    print "w/o header:\t%r" % frame.is_without_tl()
-                    print "short header:\t%r" % frame.is_with_short_tl()
-                    print "long header:\t%r" % frame.is_with_long_tl()
-                    
-                    if (frame.is_with_long_tl() or frame.is_with_short_tl()):
-						print "has errors:\t%r" % frame.header.has_errors()
-						print "access:\t\t" + frame.header.accessibility()
-						
-						if (frame.header.configuration):
-							print "config word:\t" + util.tohex(frame.header.configuration)
-							print "mode:\t\t%d" % frame.header.get_encryption_mode() + " (" + frame.header.get_encryption_name() + ")"
-							print "iv:\t\t" + util.tohex(frame.get_iv())
-                    
-                    
-                    
-                    
-                    print util.tohex(frame.data)
-                    '''
-                    # setup cipher specs
-                    spec = AES.new(key, AES.MODE_CBC, "%s" % frame.get_iv())
-                    
-                    # do the decryption
-                    pt = spec.decrypt(frame.data)
-                    
-                    # strip padding
-                    pt = pt[2:].rstrip('\x2F')
-
-                    data = bytearray(pt)
-                    print util.tohex(data)
-
-                    record = WMBusDataRecord()
-                    data = record.parse(data)
-
-                    print util.tohex(record.header.dif)
-                    print util.tohex(record.header.vif)
-
-                    b = record.value
-                    b.reverse()
-                    print util.tohex(b)
-
-                    record2 = WMBusDataRecord()
-                    data = record2.parse(data)
-
-                    print util.tohex(record2.header.dif)
-                    print util.tohex(record2.header.vif)
-
-                    record2.value.reverse()
-                    print record2.value
-    				'''
-                    print '----'
+                    frame.log(verbosity)
                 
                 # clear array and go to detect the next start sequence
                 arr = bytearray()
                 state = 0
+    
         
 if __name__ == "__main__":
     main(sys.argv[1:])
