@@ -235,7 +235,7 @@ class WMBusFrame():
         """
         ci = self.control_information
         
-        if ci >= 0xA0 and ci > 0xB7: 
+        if ci >= 0xA0 and ci <= 0xB7: 
             return 'Manufacturer specific Application Layer'
         else:
             return {
