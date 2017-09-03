@@ -6,7 +6,7 @@ from array import array
 from datetime import datetime
 from Crypto.Cipher import AES
 
-debug = 1
+debug = 0
 
 class WMBusFrame():
 
@@ -39,8 +39,14 @@ class WMBusFrame():
             '\x00\x00\x00\x00': '\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
         }
         """
+
+        if len(arr)-1 != arr[0]:
+            print "WARNING: frame length field does not match effective frame length! Decoding might be unreliable. Check your input."
+            
+            print "frame[0]: ", arr[0]
+            print "len(frame)-1: ", len(arr)-1
         
-        if (arr is not None and arr[0] >= 11 and len(arr) == arr[0]):
+        if (arr is not None and arr[0] >= 11):
             self.length = arr[0]
             self.control = arr[1]
             self.manufacturer = arr[2:4]
@@ -54,7 +60,7 @@ class WMBusFrame():
                 self.data = self.data[12:]
                 
                 '''
-                Note that according to the standerd, the manufacturer and 
+                Note that according to the standard, the manufacturer and 
                 device id from the transport header have precedence over the
                 frame information
                 '''
@@ -90,7 +96,10 @@ class WMBusFrame():
                         raise Exception("Decryption failed")
             
             self.data = bytearray(self.data.lstrip('\x2F').rstrip('\x2F'))
- 
+
+            if debug:
+                print "data: ", self.data
+
             while len(self.data) > 0:
                 record = WMBusDataRecord()
                 self.data = record.parse(self.data)            
