@@ -39,8 +39,10 @@ Thus, edit reader.py accordingly
     	'\x00\x00\x00\x00': '\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
     }
 ```
+sample output
 ```
-scammer:~/Dev/scambus$ ./reader.py -v -f examples_captures/sample_amber_encrypted.hex verbosity:  2
+scammer:~/Dev/scambus$ ./reader.py -v -f examples_captures/sample_amber_encrypted.hex
+verbosity:  2
 filename:  examples_captures/sample_amber_encrypted.hex
 txt:  46 44 a2 05 44 00 00 57 0c 37 72 44 00 00 57 a2 05 0c 37 a3 00 30 05 d8 98 c6 4f d0 c9 bd 26 34 36 50 84 e4 df 94 67 36 c7 1a 21 03 e4 5a 19 0c aa 1a 49 b6 02 e4 6c 9f 45 fc ee 79 af be 34 f0 c1 67 fd 85 7f 65 9e
 hex:  46 44 A2 05 44 00 00 57 0C 37 72 44 00 00 57 A2 05 0C 37 A3 00 30 05 D8 98 C6 4F D0 C9 BD 26 34 36 50 84 E4 DF 94 67 36 C7 1A 21 03 E4 5A 19 0C AA 1A 49 B6 02 E4 6C 9F 45 FC EE 79 AF BE 34 F0 C1 67 FD 85 7F 65 9E
