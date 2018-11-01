@@ -39,6 +39,7 @@ Thus, edit reader.py accordingly
     	'\x00\x00\x00\x00': '\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
     }
 ```
+```
 scammer:~/Dev/scambus$ ./reader.py -v -f examples_captures/sample_amber_encrypted.hex verbosity:  2
 filename:  examples_captures/sample_amber_encrypted.hex
 txt:  46 44 a2 05 44 00 00 57 0c 37 72 44 00 00 57 a2 05 0c 37 a3 00 30 05 d8 98 c6 4f d0 c9 bd 26 34 36 50 84 e4 df 94 67 36 c7 1a 21 03 e4 5a 19 0c aa 1a 49 b6 02 e4 6c 9f 45 fc ee 79 af be 34 f0 c1 67 fd 85 7f 65 9e
@@ -64,6 +65,4 @@ DIFs:	0D (Instantaneous value, variable length)
 VIFs:	FD 11 (Second extension of VIF-codes)
 Value:	41 4D 42 45 52 20 77 69 72 65 6C 65 73 73 20 54 65 73 74 6D 6F 64 75 6C 21 20 53 20 4D 6F 64 65
 --
-```
-
 ```
