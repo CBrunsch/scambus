@@ -6,7 +6,7 @@ from array import array
 from datetime import datetime
 from Crypto.Cipher import AES
 
-debug = 0
+debug = 1
 
 class WMBusFrame():
 
@@ -89,6 +89,9 @@ class WMBusFrame():
                     # setup cipher specs, decrypt and strip padding
                     spec = AES.new(self.key, AES.MODE_CBC, "%s" % self.get_iv())
                     self.data = bytearray(spec.decrypt("%s" % self.data))
+                   
+                    if debug:
+                        print "dec: ", util.tohex(self.data)
                     
                     # check whether the first two bytes are 2F
                     if (self.data[0:2] != '\x2F\x2F'):
@@ -98,7 +101,7 @@ class WMBusFrame():
             self.data = bytearray(self.data.lstrip('\x2F').rstrip('\x2F'))
 
             if debug:
-                print "data: ", self.data
+                print "cut: ", util.tohex(self.data)
 
             while len(self.data) > 0:
                 record = WMBusDataRecord()
@@ -193,7 +196,11 @@ class WMBusFrame():
                         
                         if (self.is_encrypted()):
                             line += "\niv:\t\t" + util.tohex(self.get_iv())
-                            line += "\nkey:\t\t" + util.tohex(self.key)
+                            
+                            if (self.key):
+                                line += "\nkey:\t\t" + util.tohex(self.key)
+                            else:
+                                line += "\nkey:\t\tWARNING no suitable key configured"
                 
                 line += '\n--'
                 
@@ -202,8 +209,13 @@ class WMBusFrame():
                          val = rec.value
                          val.reverse()
                         
-                         line += '\nDIFs:\t' + util.tohex(rec.header.dif) + " (" + rec.header.get_function_field_name() + ", " + rec.header.get_data_field_name() + ")"
-                         line += '\nVIFs:\t' + util.tohex(rec.header.vif) + " (" + rec.header.get_vif_description() + ")"
+                         line += '\nDIFs:\t' + util.tohex(rec.header.dif) 
+                         line += " (" + rec.header.get_function_field_name() 
+                         line += ", " + rec.header.get_data_field_name() + ")"
+                         
+                         line += '\nVIFs:\t' + util.tohex(rec.header.vif) 
+                         line += " (" + rec.header.get_vif_description() + ")"
+                         
                          line += '\nValue:\t' + util.tohex(val)
                          line += '\n--'
                          
@@ -1097,7 +1109,7 @@ class WMBusDataRecordHeader():
             0x6B: 'Pressure bar',
             
             0x6C: 'Date type G',       # actual or associated with a storage number/function
-            
+            0x6D: 'Date/time depending on data field 0100b=type F, 0011b=type J, 0110b=type I',
             0x6E: 'Units for H.C.A.',  # dimensionless
             0x6F: 'Reserved',          # for a future third table of VIF-extensions
             
@@ -1117,7 +1129,7 @@ class WMBusDataRecordHeader():
             
             0x7C: 'VIF in following string (length in first byte)',  # Allows user definable VIF ́s (in plain ASCII-String)
             0x7E: 'Any VIF',                                         # Used for readout selection of all VIF ́s (see 6.4)
-            0x7F: 'Manufacturer specific'                            # VIFE ́s and data of this block are manufacturer specific
+            0x7F: 'Manufacturer specific'                            # VIFEs and data of this block are manufacturer specific
         }.get(chooser)
             
 class WMBusDataRecord():

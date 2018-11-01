@@ -31,9 +31,9 @@ def main(argv):
             verbosity = 2
     
     if verbosity > 0:
-        print "filename: ", filename
-        print "text: ",text
         print "verbosity: ", verbosity
+        print "filename: ", filename
+        print "txt: ",text
 
     capture = bytearray().fromhex(text)
     
